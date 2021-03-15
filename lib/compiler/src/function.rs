@@ -18,6 +18,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use wasmer_types::entity::PrimaryMap;
 use wasmer_types::{FunctionIndex, LocalFunctionIndex, SignatureIndex};
+use rkyv::{Archive, Deserialize as rkyvDe, Serialize as rkyvSer};
 
 /// The frame info for a Compiled function.
 ///
@@ -25,7 +26,7 @@ use wasmer_types::{FunctionIndex, LocalFunctionIndex, SignatureIndex};
 /// the frame information after a `Trap`.
 #[cfg_attr(feature = "enable-serde", derive(Deserialize, Serialize))]
 #[cfg_attr(feature = "enable-borsh", derive(BorshSerialize, BorshDeserialize))]
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Archive, rkyvDe, rkyvSer)]
 pub struct CompiledFunctionFrameInfo {
     /// The traps (in the function body).
     ///

@@ -4,6 +4,10 @@ use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use wasmer_compiler::CompiledFunctionFrameInfo;
+use rkyv::{ser::{Serializer as rkyvSerializer, serializers::WriteSerializer}, archived_value,
+           de::deserializers::AllocDeserializer,
+Deserialize as rkyvDe};
+use bincode::Options;
 
 /// This is the unserialized verison of `CompiledFunctionFrameInfo`.
 #[derive(Clone, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
@@ -20,9 +24,21 @@ impl UnprocessedFunctionFrameInfo {
         // let r = flexbuffers::Reader::get_root(&self.bytes).expect("Can't deserialize the info");
         // CompiledFunctionFrameInfo::deserialize(r).expect("Can't deserialize the info")
         let now = std::time::Instant::now();
-        let r:CompiledFunctionFrameInfo = BorshDeserialize::deserialize(&mut self.bytes.as_ref()).expect("Can't deserialize the info");
-        if r.traps.len() == 19335000 {
+        let bytes = &self.bytes;
+        let mut pos: [u8; 8] = Default::default();
+        pos.copy_from_slice(&bytes[0..8]);
+        let pos: u64 = u64::from_le_bytes(pos);
+        let archived = unsafe { archived_value::<CompiledFunctionFrameInfo>(&bytes[8..], pos as usize )};
+
+//        let r:CompiledFunctionFrameInfo = BorshDeserialize::deserialize(&mut self.bytes.as_ref()).expect("Can't deserialize the info");
+        if archived.traps.len() == 19335000 {
             println!("{:?}", now.elapsed());
+        }
+
+        let now2 = std::time::Instant::now();
+        let r: CompiledFunctionFrameInfo = rkyvDe::deserialize(archived, &mut AllocDeserializer ).unwrap();
+        if archived.traps.len() == 19335000 {
+            println!("{:?}", now2.elapsed());
         }
         r
     }
@@ -34,6 +50,7 @@ impl UnprocessedFunctionFrameInfo {
         //     .serialize(&mut s)
         //     .expect("Can't serialize the info");
         // let bytes = s.take_buffer();
+        let mut serializer = WriteSerializer::new(vec![0u8;8]);
         if processed.traps.len() == 19335 {
             let p = processed;
             let mut processed = p.clone();
@@ -44,11 +61,22 @@ impl UnprocessedFunctionFrameInfo {
             use std::fs::File;
             use std::io::Write;
             let mut file = File::create("/tmp/CFFI2").unwrap();
-            let bytes = BorshSerialize::try_to_vec(&processed).expect("Can't serialize the info");
+            let pos = serializer.serialize_value(&processed)
+                .expect("failed to archive test");
+            let mut bytes = serializer.into_inner();
+            bytes[0..8].copy_from_slice(&pos.to_le_bytes());
+            println!("!!! {} {}", pos, bytes.len());
+
+//            let bytes = BorshSerialize::try_to_vec(&processed).expect("Can't serialize the info");
+//            println!("!!!@@∂ {}", bytes.len());
             file.write_all(&bytes).unwrap();
             return Self { bytes }
         }
-        let bytes = BorshSerialize::try_to_vec(&processed).expect("Can't serialize the info");
+        let pos = serializer.serialize_value(processed)
+            .expect("failed to archive test");
+        let mut bytes = serializer.into_inner();
+        bytes[0..8].copy_from_slice(&pos.to_le_bytes());
+//        let bytes = BorshSerialize::try_to_vec(&processed).expect("Can't serialize the info");
         Self { bytes }
     }
 }

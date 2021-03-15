@@ -13,6 +13,7 @@ use crate::lib::std::fmt;
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(feature = "enable-serde")]
 use serde::{Deserialize, Serialize};
+use rkyv::{Archive, Deserialize as rkyvDe, Serialize as rkyvSer};
 
 /// A source location.
 ///
@@ -25,7 +26,7 @@ use serde::{Deserialize, Serialize};
 )]
 #[cfg_attr(feature = "enable-borsh", derive(BorshSerialize, BorshDeserialize))]
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Archive, rkyvDe, rkyvSer)]
 pub struct SourceLoc(u32);
 
 impl SourceLoc {
